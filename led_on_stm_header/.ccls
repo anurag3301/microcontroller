@@ -1,0 +1,6 @@
+clang
+-DSTM32F401xC
+-Wall
+-Wextra
+-I.
+-I/home/anurag/.platformio/packages/framework-stm32cubef4/Drivers/CMSIS/Device/ST/STM32F4xx/Include
