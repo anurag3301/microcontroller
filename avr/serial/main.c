@@ -4,14 +4,21 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include <util/setbaud.h>
+#include <stdio.h>
 #include "uart.h"
 
 
 int main(void){
+    char str[100] = {0};
+
     uart_init();
+
+    uint64_t i = 0;
+
     while (1) {
-        USART_TransmitString("Hello, AVR!\r\n");
-        _delay_ms(1000);
+        sprintf(str, "Num: %lu\r\n", i++); 
+        USART_TransmitString(str);
+        _delay_ms(100);
     }
     
 }
