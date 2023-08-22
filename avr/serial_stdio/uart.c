@@ -33,6 +33,8 @@ void uart_putchar(char c, FILE *stream) {
 
 char uart_getchar(FILE *steam){
     loop_until_bit_is_set(UCSR0A, RXC0);
-    return UDR0;
+    char read = UDR0;
+    uart_putchar(read, steam);
+    return read;
 }
 
