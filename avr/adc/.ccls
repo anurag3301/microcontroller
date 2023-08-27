@@ -1,0 +1,3 @@
+clang
+-I/usr/avr/include
+-D__AVR_ATmega328P__ 
