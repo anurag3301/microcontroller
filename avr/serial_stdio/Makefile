@@ -1,6 +1,6 @@
-MCU=atmega328p
-DEVICE=/dev/ttyACM0
-BAUD=9600
+MCU ?= atmega328p
+DEVICE ?= /dev/ttyACM0
+BAUD ?= 9600
 
 build: main.elf
 

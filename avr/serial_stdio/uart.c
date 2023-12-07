@@ -9,16 +9,21 @@
 
 
 void uart_init(void){
+    // UBRR (UART Baud Rate Register) is a 16 bit resiter thats why
+    // we have L and H. It store the calcuted baud using BAUD, UBRR._VALUE
     UBRR0H = UBRRH_VALUE;
     UBRR0L = UBRRL_VALUE;
 
+    // USCR stands for UART Control and Status Register
+    // _BV just does shift operation eg. _BV(3) -> 0b00001000
+    // But not recommened to use as its not standerdiesd
 #if USE_2X
     UCSR0A |= _BV(U2X0);
 #else
     UCSR0A &= ~(_BV(U2X0));
 #endif
 
-    UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);
+    UCSR0C = _BV(UCSZ01) | _BV(UCSZ00); // set the frame
     UCSR0B = _BV(RXEN0) | _BV(TXEN0);
 }
 
