@@ -21,11 +21,24 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include<stdio.h>
+#include<string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+#define I2C_ADDR 0x27 // I2C address of the PCF8574
+#define RS_BIT 0 // Register select bit
+#define EN_BIT 2 // Enable bit
+#define BL_BIT 3 // Backlight bit
+#define D4_BIT 4 // Data 4 bit
+#define D5_BIT 5 // Data 5 bit
+#define D6_BIT 6 // Data 6 bit
+#define D7_BIT 7 // Data 7 bit
+
+#define LCD_ROWS 2 // Number of rows on the LCD
+#define LCD_COLS 16 // Number of columns on the LCD
+int backlight_state = 1;
 
 /* USER CODE END PTD */
 
@@ -40,23 +53,111 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
+void lcd_write_nibble(uint8_t nibble, uint8_t rs) {
+  uint8_t data = nibble << D4_BIT;
+  data |= rs << RS_BIT;
+  data |= backlight_state << BL_BIT; // Include backlight state in data
+  data |= 1 << EN_BIT;
+  HAL_I2C_Master_Transmit(&hi2c1, I2C_ADDR << 1, &data, 1, 100);
+  HAL_Delay(1);
+  data &= ~(1 << EN_BIT);
+  HAL_I2C_Master_Transmit(&hi2c1, I2C_ADDR << 1, &data, 1, 100);
+}
+void lcd_send_cmd(uint8_t cmd) {
+  uint8_t upper_nibble = cmd >> 4;
+  uint8_t lower_nibble = cmd & 0x0F;
+  lcd_write_nibble(upper_nibble, 0);
+  lcd_write_nibble(lower_nibble, 0);
+  if (cmd == 0x01 || cmd == 0x02) {
+    HAL_Delay(2);
+  }
+}
+
+void lcd_send_data(uint8_t data) {
+  uint8_t upper_nibble = data >> 4;
+  uint8_t lower_nibble = data & 0x0F;
+  lcd_write_nibble(upper_nibble, 1);
+  lcd_write_nibble(lower_nibble, 1);
+}
+
+void lcd_init() {
+  HAL_Delay(50);
+  lcd_write_nibble(0x03, 0);
+  HAL_Delay(5);
+  lcd_write_nibble(0x03, 0);
+  HAL_Delay(1);
+  lcd_write_nibble(0x03, 0);
+  HAL_Delay(1);
+  lcd_write_nibble(0x02, 0);
+  lcd_send_cmd(0x28);
+  lcd_send_cmd(0x0C);
+  lcd_send_cmd(0x06);
+  lcd_send_cmd(0x01);
+  HAL_Delay(2);
+}
+void lcd_write_string(char *str) {
+  while (*str) {
+    lcd_send_data(*str++);
+  }
+}
+void lcd_set_cursor(uint8_t row, uint8_t column) {
+    uint8_t address;
+    switch (row) {
+        case 0:
+            address = 0x00;
+            break;
+        case 1:
+            address = 0x40;
+            break;
+        default:
+            address = 0x00;
+    }
+    address += column;
+    lcd_send_cmd(0x80 | address);
+}
+void lcd_clear(void) {
+	lcd_send_cmd(0x01);
+    HAL_Delay(2);
+}
+void lcd_backlight(uint8_t state) {
+  if (state) {
+    backlight_state = 1;
+  } else {
+    backlight_state = 0;
+  }
+}
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM2_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+uint8_t I2C_Scan(I2C_HandleTypeDef *hi2c) {
+    HAL_StatusTypeDef status;
 
+    for (uint8_t address = 1; address <= 127; address++) {
+        status = HAL_I2C_IsDeviceReady(hi2c, (uint16_t)(address << 1), 2, 2);
+        if (status == HAL_OK) {
+        	return address;
+        }
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -66,7 +167,8 @@ static void MX_USART2_UART_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+  uint8_t MSG[50] = {'\0'};
+  uint8_t messageSize;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -88,14 +190,32 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_TIM2_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-
+  uint8_t address = I2C_Scan(&hi2c1);
+  lcd_init();
+  lcd_backlight(1);
+   lcd_clear();
+   lcd_set_cursor(0, 0);
+   lcd_write_string("h");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+//     HAL_I2C_Master_Receive(&hi2c1, (uint16_t)(address << 1), &messageSize, 1, HAL_MAX_DELAY);
+//     HAL_I2C_Master_Receive(&hi2c1, (uint16_t)(address << 1), MSG, messageSize, HAL_MAX_DELAY);
+//	  sprintf(MSG, "%x\n\r", address);
+//     HAL_UART_Transmit(&huart2, MSG, strlen(MSG), HAL_MAX_DELAY);
+//	 HAL_Delay(1000);
+//	 sprintf(int_to_str, "%d", count);
+//	   lcd_set_cursor(1, 0);
+//	   lcd_write_string(int_to_str);
+//	   count++;
+//	   memset(int_to_str, 0, sizeof(int_to_str));
+//	   HAL_Delay(1500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -147,6 +267,99 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 255;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 25;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
+
 }
 
 /**
