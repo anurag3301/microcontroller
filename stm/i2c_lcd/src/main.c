@@ -1,10 +1,13 @@
 #include <main.h>
+#include <i2c_lcd.h>
 #include <stdio.h>
 #include <string.h>
 
-I2C_HandleTypeDef hi2c1;
 
+I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef huart2;
+I2C_LCD_HandleTypeDef hi2clcd1;
+
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
@@ -18,10 +21,24 @@ int main(void){
     MX_USART2_UART_Init();
     MX_I2C1_Init();
 
+    hi2clcd1.hi2c = &hi2c1;
+    hi2clcd1.i2c_addr = 0x27;
+    hi2clcd1.backlight = true;
+    hi2clcd1.col_count = 16;
+    hi2clcd1.row_count = 2;
+
     char buffer[100];
-    sprintf(buffer, "Hello world\n\r");
+    uint8_t address = I2C_Scan(&hi2c1);
+    uint64_t count = 0;
+
+    lcd_init(&hi2clcd1);
+    lcd_set_cursor(&hi2clcd1, 0, 0);
+
     while (1){
         HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), 100);
+        sprintf(buffer, "%ld", count++);
+        lcd_clear(&hi2clcd1);
+        lcd_write_string(&hi2clcd1, buffer);
         HAL_Delay(100);
     }
 }
