@@ -5,9 +5,6 @@
 #define EN_BIT 2 // Enable bit
 #define BL_BIT 3 // Backlight bit
 #define D4_BIT 4 // Data 4 bit
-#define D5_BIT 5 // Data 5 bit
-#define D6_BIT 6 // Data 6 bit
-#define D7_BIT 7 // Data 7 bit
 
 void lcd_write_nibble(I2C_LCD_HandleTypeDef *hi2clcd, uint8_t nibble, uint8_t rs){
     uint8_t data = nibble << D4_BIT;
@@ -25,7 +22,7 @@ void lcd_send_cmd(I2C_LCD_HandleTypeDef *hi2clcd, uint8_t cmd){
     uint8_t lower_nibble = cmd & 0x0F;
     lcd_write_nibble(hi2clcd, upper_nibble, 0);
     lcd_write_nibble(hi2clcd, lower_nibble, 0);
-    if(cmd == 0x01 || cmd == 0x02){
+    if(cmd == LCD_CLEARDISPLAY || cmd == LCD_RETURNHOME){
         HAL_Delay(2);
     }
 }
@@ -37,8 +34,11 @@ void lcd_send_data(I2C_LCD_HandleTypeDef *hi2clcd, uint8_t data){
     lcd_write_nibble(hi2clcd, lower_nibble, 1);
 }
 
+
 void lcd_init(I2C_LCD_HandleTypeDef *hi2clcd){
     HAL_Delay(50);
+
+  	//put the LCD into 4 bit mode
     lcd_write_nibble(hi2clcd, 0x03, 0);
     HAL_Delay(5);
     lcd_write_nibble(hi2clcd, 0x03, 0);
@@ -46,11 +46,17 @@ void lcd_init(I2C_LCD_HandleTypeDef *hi2clcd){
     lcd_write_nibble(hi2clcd, 0x03, 0);
     HAL_Delay(1);
     lcd_write_nibble(hi2clcd, 0x02, 0);
-    lcd_send_cmd(hi2clcd, 0x28);
-    lcd_send_cmd(hi2clcd, 0x0C);
-    lcd_send_cmd(hi2clcd, 0x06);
-    lcd_send_cmd(hi2clcd, 0x01);
-    HAL_Delay(2);
+    
+    uint8_t displayfunction = LCD_FUNCTIONSET | LCD_4BITMODE | LCD_2LINE | LCD_5x8DOTS;
+    lcd_send_cmd(hi2clcd, displayfunction); // 0x28
+
+	uint8_t displaycontrol = LCD_DISPLAYCONTROL | LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF;
+    lcd_send_cmd(hi2clcd, displaycontrol); // 0x0C
+
+    lcd_clear(hi2clcd);
+
+	uint8_t displaymode = LCD_ENTRYMODESET | LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT;
+	lcd_send_cmd(hi2clcd, displaymode); // 0x06
 }
 
 void lcd_write_string(I2C_LCD_HandleTypeDef *hi2clcd, const char *str){
@@ -79,7 +85,7 @@ void lcd_set_cursor(I2C_LCD_HandleTypeDef *hi2clcd, uint8_t row, uint8_t column)
             address = 0x00;
     }
     address += column;
-    lcd_send_cmd(hi2clcd, 0x80 | address);
+    lcd_send_cmd(hi2clcd, LCD_SETDDRAMADDR | address);
 }
 
 
