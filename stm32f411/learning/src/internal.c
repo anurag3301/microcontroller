@@ -1,5 +1,8 @@
 #include "main.h"
 
+
+extern UART_HandleTypeDef huart; 
+
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
@@ -56,4 +59,8 @@ void SystemClock_Config(void)
 
 void SysTick_Handler(void){
     HAL_IncTick();
+}
+
+void USART2_IRQHandler(void){
+    HAL_UART_IRQHandler(&huart);
 }
